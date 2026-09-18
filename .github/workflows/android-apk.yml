@@ -1,0 +1,77 @@
+name: Build Android APK
+
+# Runs on every push, and can be started by hand from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The app checks this link on every open and picks up newer marks without a reinstall.
+      # It points at GitHub Pages for this same repository, so nothing needs editing by hand.
+      - name: Set the update link
+        run: |
+          URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data.json"
+          echo "Update link: $URL"
+          sed -i "s|__DATA_URL__|$URL|" www/index.html
+          grep -q "$URL" www/index.html || { echo "Link was not written into www/index.html"; exit 1; }
+
+      - name: Install Capacitor
+        run: npm install
+
+      - name: Create the Android project
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tharka-marks-card-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      # For the Play Store you need a signed release bundle instead.
+      # Add your keystore as repository secrets, then uncomment this block.
+      #
+      # - name: Build release bundle (AAB)
+      #   env:
+      #     KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+      #     KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      #     KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      #     STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      #   run: |
+      #     echo "$KEYSTORE_B64" | base64 -d > android/app/tharka.keystore
+      #     cd android
+      #     ./gradlew bundleRelease --no-daemon \
+      #       -Pandroid.injected.signing.store.file=$PWD/app/tharka.keystore \
+      #       -Pandroid.injected.signing.store.password=$STORE_PASSWORD \
+      #       -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+      #       -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+      #
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: tharka-marks-card-aab
+      #     path: android/app/build/outputs/bundle/release/app-release.aab
