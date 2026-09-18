@@ -1,6 +1,5 @@
 name: Build Android APK
 
-# Runs on every push, and can be started by hand from the Actions tab.
 on:
   push:
     branches: [main]
@@ -21,8 +20,14 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # The app checks this link on every open and picks up newer marks without a reinstall.
-      # It points at GitHub Pages for this same repository, so nothing needs editing by hand.
+      - name: Put the web files where Capacitor expects them
+        run: |
+          mkdir -p www
+          for f in index.html xlsx.full.min.js; do
+            if [ -f "$f" ]; then mv "$f" www/; fi
+          done
+          ls -la www
+
       - name: Set the update link
         run: |
           URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data.json"
@@ -52,26 +57,3 @@ jobs:
           name: tharka-marks-card-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
-      # For the Play Store you need a signed release bundle instead.
-      # Add your keystore as repository secrets, then uncomment this block.
-      #
-      # - name: Build release bundle (AAB)
-      #   env:
-      #     KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
-      #     KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-      #     KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      #     STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-      #   run: |
-      #     echo "$KEYSTORE_B64" | base64 -d > android/app/tharka.keystore
-      #     cd android
-      #     ./gradlew bundleRelease --no-daemon \
-      #       -Pandroid.injected.signing.store.file=$PWD/app/tharka.keystore \
-      #       -Pandroid.injected.signing.store.password=$STORE_PASSWORD \
-      #       -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-      #       -Pandroid.injected.signing.key.password=$KEY_PASSWORD
-      #
-      # - uses: actions/upload-artifact@v4
-      #   with:
-      #     name: tharka-marks-card-aab
-      #     path: android/app/build/outputs/bundle/release/app-release.aab
