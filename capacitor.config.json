@@ -1,0 +1,11 @@
+{
+  "appId": "in.tharka.markscard",
+  "appName": "Tharka Marks Card",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
